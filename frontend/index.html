@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMR QR System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        }
+        
+        .record-card {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        
+        .record-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        #qrCodeContainer {
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        
+        .nav-tab {
+            transition: all 0.2s ease;
+        }
+        
+        .nav-tab:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-tab.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-left: 4px solid white;
+        }
+        
+        .offline-badge {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Main App Container -->
+    <div class="flex flex-col min-h-screen">
+        <!-- Header -->
+        <header class="gradient-bg text-white">
+            <div class="container mx-auto px-4 py-6">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                        </svg>
+                        <h1 class="text-2xl font-bold">EMR QR System</h1>
+                    </div>
+                    <div id="connectionStatus" class="offline-badge bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium hidden">
+                        Offline Mode
+                    </div>
+                </div>
+                
+                <!-- Navigation Tabs -->
+                <div class="mt-6 flex space-x-1 overflow-x-auto">
+                    <a href="#" class="nav-tab active px-4 py-2 rounded-t-lg font-medium flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span>New Record</span>
+                    </a>
+                    <a href="#admin" class="nav-tab px-4 py-2 rounded-t-lg font-medium flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span>Admin</span>
+                    </a>
+                    <a href="#selfview" class="nav-tab px-4 py-2 rounded-t-lg font-medium flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span>Self View</span>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto px-4 py-6">
+            <!-- New Record Form -->
+            <div id="newRecordSection" class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">Patient Emergency Medical Record</h2>
+                
+                <form id="patientForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Personal Information -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-medium text-gray-700 border-b pb-2">Personal Information</h3>
+                        
+                        <div>
+                            <label for="fullName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <input type="text" id="fullName" name="fullName" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="age" class="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                                <input type="number" id="age" name="age" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label for="bloodType" class="block text-sm font-medium text-gray-700 mb-1">Blood Type</label>
+                                <select id="bloodType" name="bloodType" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="A+">A+</option>
+                                    <option value="A-">A-</option>
+                                    <option value="B+">B+</option>
+                                    <option value="B-">B-</option>
+                                    <option value="AB+">AB+</option>
+                                    <option value="AB-">AB-</option>
+                                    <option value="O+">O+</option>
+                                    <option value="O-">O-</option>
+                                    <option value="Unknown">Unknown</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Medical Information -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-medium text-gray-700 border-b pb-2">Medical Information</h3>
+                        
+                        <div>
+                            <label for="allergies" class="block text-sm font-medium text-gray-700 mb-1">Allergies</label>
+                            <textarea id="allergies" name="allergies" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="List any known allergies"></textarea>
+                        </div>
+                        
+                        <div>
+                            <label for="medications" class="block text-sm font-medium text-gray-700 mb-1">Current Medications</label>
+                            <textarea id="medications" name="medications" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="List current medications"></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Vitals -->
+                    <div class="space-y-4 md:col-span-2">
+                        <h3 class="text-lg font-medium text-gray-700 border-b pb-2">Vital Signs</h3>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <label for="bloodPressure" class="block text-sm font-medium text-gray-700 mb-1">Blood Pressure</label>
+                                <input type="text" id="bloodPressure" name="bloodPressure" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. 120/80">
+                            </div>
+                            
+                            <div>
+                                <label for="heartRate" class="block text-sm font-medium text-gray-700 mb-1">Heart Rate (bpm)</label>
+                                <input type="number" id="heartRate" name="heartRate" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            
+                            <div>
+                                <label for="temperature" class="block text-sm font-medium text-gray-700 mb-1">Temperature (°C)</label>
+                                <input type="number" step="0.1" id="temperature" name="temperature" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            
+                            <div>
+                                <label for="oxygenSaturation" class="block text-sm font-medium text-gray-700 mb-1">O₂ Saturation (%)</label>
+                                <input type="number" id="oxygenSaturation" name="oxygenSaturation" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="additionalNotes" class="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
+                            <textarea id="additionalNotes" name="additionalNotes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Any other important medical information"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="md:col-span-2 flex justify-end space-x-3">
+                        <button type="reset" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Clear Form
+                        </button>
+                        <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Generate QR Code
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- QR Code Preview Section -->
+                <div id="qrPreviewSection" class="mt-8 hidden">
+                    <h3 class="text-lg font-medium text-gray-700 mb-4">Emergency QR Code</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- QR Code Display -->
+                        <div class="md:col-span-1">
+                            <div id="qrCodeContainer" class="border border-gray-200"></div>
+                            
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                <button id="downloadBtn" class="flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 rounded-md text-sm font-medium hover:bg-blue-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Download
+                                </button>
+                                <button id="printBtn" class="flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                    </svg>
+                                    Print
+                                </button>
+                                <button id="selfViewBtn" class="flex items-center px-3 py-1.5 bg-green-100 text-green-700 rounded-md text-sm font-medium hover:bg-green-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    Self View
+                                </button>
+                                <button id="adminViewBtn" class="flex items-center px-3 py-1.5 bg-purple-100 text-purple-700 rounded-md text-sm font-medium hover:bg-purple-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c-.94 1.543.826 3.31 2.37 2.37.996.608 2.296.07 2.572-1.065z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    Admin View
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Patient Summary -->
+                        <div class="md:col-span-2">
+                            <div class="bg-gray-50 p-4 rounded-md border border-gray-200">
+                                <h4 class="font-medium text-gray-800 mb-3">Patient Summary</h4>
+                                <div id="patientSummary" class="grid grid-cols-2 gap-3 text-sm">
+                                    <!-- Summary will be populated by JavaScript -->
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 bg-yellow-50 p-4 rounded-md border border-yellow-200">
+                                <h4 class="font-medium text-yellow-800 mb-2">Important Instructions</h4>
+                                <ul class="text-sm text-yellow-700 list-disc pl-5 space-y-1">
+                                    <li>This QR code contains sensitive medical information</li>
+                                    <li>Print and provide to patient or attach to medical records</li>
+                                    <li>For emergency use only</li>
+                                    <li>Scan with any QR code reader to access information</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Admin Section (hidden by default) -->
+            <div id="adminSection" class="bg-white rounded-lg shadow-md p-6 hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-800">Patient Records Admin</h2>
+                    <button id="syncRecordsBtn" class="px-3 py-1 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Sync Records
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <div class="flex">
+                        <input type="text" id="searchInput" placeholder="Search by patient name or ID..." class="flex-grow px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <button id="searchBtn" class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700">
+                            Search
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="adminRecordsList" class="space-y-3">
+                    <!-- Records will be populated by JavaScript -->
+                    <div class="text-center py-10 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>No patient records found</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Self View Section (hidden by default) -->
+            <div id="selfViewSection" class="bg-white rounded-lg shadow-md p-6 hidden">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">View Your Medical Record</h2>
+                
+                <div class="max-w-md mx-auto">
+                    <div class="mb-6">
+                        <label for="recordIdInput" class="block text-sm font-medium text-gray-700 mb-1">Enter your Record ID</label>
+                        <div class="flex">
+                            <input type="text" id="recordIdInput" placeholder="Paste your record ID here" class="flex-grow px-3 py-2 border border-gray-300 rounded-l-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <button id="viewRecordBtn" class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700">
+                                View
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="selfViewRecord" class="hidden">
+                        <div class="bg-gray-50 p-4 rounded-md border border-gray-200 mb-4">
+                            <h3 class="font-medium text-gray-800 mb-3 border-b pb-2">Your Medical Information</h3>
+                            <div id="selfViewContent" class="grid grid-cols-2 gap-3 text-sm">
+                                <!-- Record content will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button id="printSelfViewBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 inline-flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                                Print This Record
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="bg-gray-800 text-white py-6">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div class="mb-4 md:mb-0">
+                        <div class="flex items-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                            </svg>
+                            <span class="font-bold">EMR QR System</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mt-1">Secure patient medical records via QR codes</p>
+                    </div>
+                    <div class="text-sm text-gray-400">
+                        &copy; 2023 EMR QR System. All rights reserved.
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Initialize global variables
+        let currentRecordId = null;
+        const { jsPDF } = window.jspdf;
+        
+        // Check online status
+        function updateOnlineStatus() {
+            const connectionStatus = document.getElementById('connectionStatus');
+            if (navigator.onLine) {
+                connectionStatus.classList.add('hidden');
+            } else {
+                connectionStatus.classList.remove('hidden');
+            }
+        }
+        
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+        
+        // Navigation between sections
+        function showSection(sectionId) {
+            document.getElementById('newRecordSection').classList.add('hidden');
+            document.getElementById('adminSection').classList.add('hidden');
+            document.getElementById('selfViewSection').classList.add('hidden');
+            
+            // Update active tab
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            if (sectionId === 'newRecordSection') {
+                document.getElementById('newRecordSection').classList.remove('hidden');
+                document.querySelector('.nav-tab:first-child').classList.add('active');
+            } else if (sectionId === 'adminSection') {
+                document.getElementById('adminSection').classList.remove('hidden');
+                document.querySelector('.nav-tab:nth-child(2)').classList.add('active');
+                loadAdminRecords();
+            } else if (sectionId === 'selfViewSection') {
+                document.getElementById('selfViewSection').classList.remove('hidden');
+                document.querySelector('.nav-tab:nth-child(3)').classList.add('active');
+            }
+        }
+        
+        // Handle hash changes for navigation
+        window.addEventListener('hashchange', () => {
+            if (window.location.hash === '#admin') {
+                showSection('adminSection');
+            } else if (window.location.hash === '#selfview') {
+                showSection('selfViewSection');
+            } else {
+                showSection('newRecordSection');
+            }
+        });
+        
+        // Initialize to show correct section based on hash
+        if (window.location.hash === '#admin') {
+            showSection('adminSection');
+        } else if (window.location.hash === '#selfview') {
+            showSection('selfViewSection');
+        } else {
+            showSection('newRecordSection');
+        }
+        
+        // Encryption functions
+        const SECRET_KEY = "emr-qr-secret-key-123"; // In a real app, this should be more secure
+        
+        function encryptData(data) {
+            return CryptoJS.AES.encrypt(JSON.stringify(data), SECRET_KEY).toString();
+        }
+        
+        function decryptData(encryptedData) {
+            const bytes = CryptoJS.AES.decrypt(encryptedData, SECRET_KEY);
+            return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+        }
+        
+        // Generate a unique ID for records
+        function generateRecordId() {
+            return 'emr-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+        
+        // Storage functions
+        function saveRecord(record) {
+            const records = JSON.parse(localStorage.getItem('emrRecords') || '[]');
+            records.push(record);
+            localStorage.setItem('emrRecords', JSON.stringify(records));
+            return record;
+        }
+        
+        function getRecords() {
+            return JSON.parse(localStorage.getItem('emrRecords') || '[]');
+        }
+        
+        function getRecordById(id) {
+            const records = getRecords();
+            return records.find(record => record.id === id);
+        }
+        
+        function searchRecords(query) {
+            const records = getRecords();
+            if (!query) return records;
+            
+            const lowerQuery = query.toLowerCase();
+            return records.filter(record => 
+                record.id.toLowerCase().includes(lowerQuery) || 
+                record.data.fullName.toLowerCase().includes(lowerQuery)
+            );
+        }
+        
+        // Form submission handler
+        document.getElementById('patientForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                fullName: document.getElementById('fullName').value,
+                age: document.getElementById('age').value,
+                bloodType: document.getElementById('bloodType').value,
+                allergies: document.getElementById('allergies').value,
+                medications: document.getElementById('medications').value,
+                bloodPressure: document.getElementById('bloodPressure').value,
+                heartRate: document.getElementById('heartRate').value,
+                temperature: document.getElementById('temperature').value,
+                oxygenSaturation: document.getElementById('oxygenSaturation').value,
+                additionalNotes: document.getElementById('additionalNotes').value,
+                timestamp: new Date().toISOString()
+            };
+            
+            const recordId = generateRecordId();
+            const encryptedData = encryptData(formData);
+            
+            const record = {
+                id: recordId,
+                data: formData,
+                encryptedData: encryptedData,
+                createdAt: new Date().toISOString()
+            };
+            
+            saveRecord(record);
+            currentRecordId = recordId;
+            
+            // Generate QR code
+            generateQRCode(recordId, encryptedData);
+            
+            // Show preview section
+            document.getElementById('qrPreviewSection').classList.remove('hidden');
+            
+            // Update patient summary
+            updatePatientSummary(formData);
+        });
+        
+        // Generate QR code
+        function generateQRCode(recordId, encryptedData) {
+            // In a real app, you would include a URL to your server
+            const qrData = JSON.stringify({
+                id: recordId,
+                data: encryptedData,
+                url: "https://emr-qr-system.example.com/record/" + recordId
+            });
+            
+            document.getElementById('qrCodeContainer').innerHTML = '';
+            new QRCode(document.getElementById('qrCodeContainer'), {
+                text: qrData,
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+        
+        // Update patient summary
+        function updatePatientSummary(data) {
+            const summaryContainer = document.getElementById('patientSummary');
+            summaryContainer.innerHTML = `
+                <div>
+                    <p class="text-gray-500">Name</p>
+                    <p class="font-medium">${data.fullName}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">Age</p>
+                    <p class="font-medium">${data.age}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">Blood Type</p>
+                    <p class="font-medium">${data.bloodType}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">Record ID</p>
+                    <p class="font-medium text-sm">${currentRecordId}</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">Allergies</p>
+                    <p class="font-medium">${data.allergies || 'None reported'}</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">Medications</p>
+                    <p class="font-medium">${data.medications || 'None reported'}</p>
+                </div>
+            `;
+        }
+        
+        // Button handlers
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            const canvas = document.querySelector('#qrCodeContainer canvas');
+            const pngUrl = canvas.toDataURL('image/png');
+            const downloadLink = document.createElement('a');
+            downloadLink.href = pngUrl;
+            downloadLink.download = `emr-qr-${currentRecordId}.png`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        });
+        
+        document.getElementById('printBtn').addEventListener('click', function() {
+            const record = getRecordById(currentRecordId);
+            if (!record) return;
+            
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(18);
+            doc.text('Emergency Medical Record', 105, 20, { align: 'center' });
+            
+            // Add QR code
+            const canvas = document.querySelector('#qrCodeContainer canvas');
+            const imgData = canvas.toDataURL('image/png');
+            doc.addImage(imgData, 'PNG', 70, 30, 70, 70);
+            
+            // Add patient info
+            doc.setFontSize(12);
+            doc.text(`Patient: ${record.data.fullName}`, 20, 110);
+            doc.text(`Age: ${record.data.age}`, 20, 120);
+            doc.text(`Blood Type: ${record.data.bloodType}`, 20, 130);
+            doc.text(`Allergies: ${record.data.allergies || 'None'}`, 20, 140);
+            doc.text(`Medications: ${record.data.medications || 'None'}`, 20, 150);
+            doc.text(`Record ID: ${record.id}`, 20, 160);
+            
+            // Add timestamp
+            doc.setFontSize(10);
+            doc.text(`Generated on: ${new Date(record.createdAt).toLocaleString()}`, 105, 190, { align: 'center' });
+            
+            doc.save(`emr-record-${currentRecordId}.pdf`);
+        });
+        
+        document.getElementById('selfViewBtn').addEventListener('click', function() {
+            window.location.hash = 'selfview';
+            document.getElementById('recordIdInput').value = currentRecordId;
+            viewRecord();
+        });
+        
+        document.getElementById('adminViewBtn').addEventListener('click', function() {
+            window.location.hash = 'admin';
+        });
+        
+        // Admin section functions
+        function loadAdminRecords() {
+            const records = getRecords();
+            const recordsList = document.getElementById('adminRecordsList');
+            
+            if (records.length === 0) {
+                recordsList.innerHTML = `
+                    <div class="text-center py-10 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>No patient records found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            recordsList.innerHTML = '';
+            records.reverse().forEach(record => {
+                const recordElement = document.createElement('div');
+                recordElement.className = 'record-card bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md';
+                recordElement.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-medium text-gray-800">${record.data.fullName}</h3>
+                            <p class="text-sm text-gray-600">Age: ${record.data.age} | Blood Type: ${record.data.bloodType}</p>
+                            <p class="text-xs text-gray-500 mt-1">Record ID: ${record.id}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="view-record-btn px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200" data-id="${record.id}">
+                                View
+                            </button>
+                            <button class="qr-record-btn px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200" data-id="${record.id}">
+                                QR
+                            </button>
+                        </div>
+                    </div>
+                `;
+                recordsList.appendChild(recordElement);
+            });
+            
+            // Add event listeners to the buttons
+            document.querySelectorAll('.view-record-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const recordId = this.getAttribute('data-id');
+                    viewAdminRecord(recordId);
+                });
+            });
+            
+            document.querySelectorAll('.qr-record-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const recordId = this.getAttribute('data-id');
+                    generateAdminQR(recordId);
+                });
+            });
+        }
+        
+        function viewAdminRecord(recordId) {
+            const record = getRecordById(recordId);
+            if (!record) return;
+            
+            // Create a modal to display the record
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-medium text-gray-900">Patient Record: ${record.data.fullName}</h3>
+                            <button class="close-modal text-gray-400 hover:text-gray-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="text-gray-500">Full Name</p>
+                                <p class="font-medium mb-3">${record.data.fullName}</p>
+                                
+                                <p class="text-gray-500">Age</p>
+                                <p class="font-medium mb-3">${record.data.age}</p>
+                                
+                                <p class="text-gray-500">Blood Type</p>
+                                <p class="font-medium mb-3">${record.data.bloodType}</p>
+                                
+                                <p class="text-gray-500">Record ID</p>
+                                <p class="font-medium mb-3">${record.id}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500">Created At</p>
+                                <p class="font-medium mb-3">${new Date(record.createdAt).toLocaleString()}</p>
+                                
+                                <p class="text-gray-500">Allergies</p>
+                                <p class="font-medium mb-3">${record.data.allergies || 'None reported'}</p>
+                                
+                                <p class="text-gray-500">Medications</p>
+                                <p class="font-medium mb-3">${record.data.medications || 'None reported'}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6">
+                            <h4 class="font-medium text-gray-700 border-b pb-2 mb-3">Vital Signs</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div>
+                                    <p class="text-gray-500">Blood Pressure</p>
+                                    <p class="font-medium">${record.data.bloodPressure || '--'}</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500">Heart Rate</p>
+                                    <p class="font-medium">${record.data.heartRate || '--'} bpm</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500">Temperature</p>
+                                    <p class="font-medium">${record.data.temperature || '--'} °C</p>
+                                </div>
+                                <div>
+                                    <p class="text-gray-500">O₂ Saturation</p>
+                                    <p class="font-medium">${record.data.oxygenSaturation || '--'} %</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6">
+                            <h4 class="font-medium text-gray-700 border-b pb-2 mb-3">Additional Notes</h4>
+                            <p class="text-gray-800">${record.data.additionalNotes || 'No additional notes'}</p>
+                        </div>
+                        
+                        <div class="mt-6 flex justify-end space-x-3">
+                            <button class="print-record-btn px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm" data-id="${record.id}">
+                                Print Record
+                            </button>
+                            <button class="close-modal px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add event listeners
+            modal.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            });
+            
+            modal.querySelector('.print-record-btn').addEventListener('click', function() {
+                printRecord(this.getAttribute('data-id'));
+            });
+        }
+        
+        function generateAdminQR(recordId) {
+            const record = getRecordById(recordId);
+            if (!record) return;
+            
+            // Create a modal to display the QR code
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-lg font-medium text-gray-900">QR Code for ${record.data.fullName}</h3>
+                            <button class="close-modal text-gray-400 hover:text-gray-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="flex justify-center mb-6">
+                            <div id="adminQrCodeContainer" class="border border-gray-200 p-2"></div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600 mb-4">Scan this QR code to access emergency medical information</p>
+                            <div class="flex justify-center space-x-3">
+                                <button class="download-qr-btn px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm" data-id="${record.id}">
+                                    Download QR
+                                </button>
+                                <button class="close-modal px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Generate QR code
+            const qrContainer = modal.querySelector('#adminQrCodeContainer');
+            new QRCode(qrContainer, {
+                text: JSON.stringify({
+                    id: record.id,
+                    data: record.encryptedData,
+                    url: "https://emr-qr-system.example.com/record/" + record.id
+                }),
+                width: 200,
+                height: 200,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            // Add event listeners
+            modal.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            });
+            
+            modal.querySelector('.download-qr-btn').addEventListener('click', function() {
+                const canvas = qrContainer.querySelector('canvas');
+                const pngUrl = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = pngUrl;
+                downloadLink.download = `emr-qr-${record.id}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+            });
+        }
+        
+        // Search functionality
+        document.getElementById('searchBtn').addEventListener('click', function() {
+            const query = document.getElementById('searchInput').value;
+            const records = searchRecords(query);
+            const recordsList = document.getElementById('adminRecordsList');
+            
+            if (records.length === 0) {
+                recordsList.innerHTML = `
+                    <div class="text-center py-10 text-gray-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p>No matching records found</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            recordsList.innerHTML = '';
+            records.forEach(record => {
+                const recordElement = document.createElement('div');
+                recordElement.className = 'record-card bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md';
+                recordElement.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-medium text-gray-800">${record.data.fullName}</h3>
+                            <p class="text-sm text-gray-600">Age: ${record.data.age} | Blood Type: ${record.data.bloodType}</p>
+                            <p class="text-xs text-gray-500 mt-1">Record ID: ${record.id}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="view-record-btn px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200" data-id="${record.id}">
+                                View
+                            </button>
+                            <button class="qr-record-btn px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium hover:bg-purple-200" data-id="${record.id}">
+                                QR
+                            </button>
+                        </div>
+                    </div>
+                `;
+                recordsList.appendChild(recordElement);
+            });
+            
+            // Add event listeners to the new buttons
+            document.querySelectorAll('.view-record-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const recordId = this.getAttribute('data-id');
+                    viewAdminRecord(recordId);
+                });
+            });
+            
+            document.querySelectorAll('.qr-record-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const recordId = this.getAttribute('data-id');
+                    generateAdminQR(recordId);
+                });
+            });
+        });
+        
+        // Sync records button (placeholder for future online sync)
+        document.getElementById('syncRecordsBtn').addEventListener('click', function() {
+            alert('In a real application, this would sync records with a server. Running in offline mode, all data is stored locally.');
+        });
+        
+        // Self view functions
+        document.getElementById('viewRecordBtn').addEventListener('click', viewRecord);
+        
+        function viewRecord() {
+            const recordId = document.getElementById('recordIdInput').value.trim();
+            if (!recordId) return;
+            
+            const record = getRecordById(recordId);
+            if (!record) {
+                alert('Record not found. Please check the ID and try again.');
+                return;
+            }
+            
+            const selfViewContent = document.getElementById('selfViewContent');
+            selfViewContent.innerHTML = `
+                <div>
+                    <p class="text-gray-500">Full Name</p>
+                    <p class="font-medium">${record.data.fullName}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">Age</p>
+                    <p class="font-medium">${record.data.age}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">Blood Type</p>
+                    <p class="font-medium">${record.data.bloodType}</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">Record ID</p>
+                    <p class="font-medium text-sm">${record.id}</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">Allergies</p>
+                    <p class="font-medium">${record.data.allergies || 'None reported'}</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">Medications</p>
+                    <p class="font-medium">${record.data.medications || 'None reported'}</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">Blood Pressure</p>
+                    <p class="font-medium">${record.data.bloodPressure || '--'}</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">Heart Rate</p>
+                    <p class="font-medium">${record.data.heartRate || '--'} bpm</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">Temperature</p>
+                    <p class="font-medium">${record.data.temperature || '--'} °C</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">O₂ Saturation</p>
+                    <p class="font-medium">${record.data.oxygenSaturation || '--'} %</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-gray-500">Additional Notes</p>
+                    <p class="font-medium">${record.data.additionalNotes || 'No additional notes'}</p>
+                </div>
+            `;
+            
+            document.getElementById('selfViewRecord').classList.remove('hidden');
+        }
+        
+        document.getElementById('printSelfViewBtn').addEventListener('click', function() {
+            const recordId = document.getElementById('recordIdInput').value.trim();
+            if (!recordId) return;
+            
+            printRecord(recordId);
+        });
+        
+        // Print record function
+        function printRecord(recordId) {
+            const record = getRecordById(recordId);
+            if (!record) return;
+            
+            const doc = new jsPDF();
+            
+            // Add title
+            doc.setFontSize(18);
+            doc.text('Emergency Medical Record', 105, 20, { align: 'center' });
+            
+            // Add patient info
+            doc.setFontSize(12);
+            doc.text(`Patient: ${record.data.fullName}`, 20, 40);
+            doc.text(`Age: ${record.data.age}`, 20, 50);
+            doc.text(`Blood Type: ${record.data.bloodType}`, 20, 60);
+            doc.text(`Record ID: ${record.id}`, 20, 70);
+            doc.text(`Created: ${new Date(record.createdAt).toLocaleString()}`, 20, 80);
+            
+            // Add medical info
+            doc.text('Allergies:', 20, 95);
+            doc.text(`${record.data.allergies || 'None reported'}`, 20, 105);
+            
+            doc.text('Medications:', 20, 120);
+            doc.text(`${record.data.medications || 'None reported'}`, 20, 130);
+            
+            // Add vital signs
+            doc.text('Vital Signs:', 20, 145);
+            doc.text(`Blood Pressure: ${record.data.bloodPressure || '--'}`, 20, 155);
+            doc.text(`Heart Rate: ${record.data.heartRate || '--'} bpm`, 20, 165);
+            doc.text(`Temperature: ${record.data.temperature || '--'} °C`, 20, 175);
+            doc.text(`O₂ Saturation: ${record.data.oxygenSaturation || '--'} %`, 20, 185);
+            
+            // Add additional notes
+            doc.text('Additional Notes:', 20, 200);
+            doc.text(`${record.data.additionalNotes || 'No additional notes'}`, 20, 210);
+            
+            doc.save(`emr-record-${recordId}.pdf`);
+        }
+        
+        // Register service worker for offline capability
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js').then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }).catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+
+    <!-- Service Worker (embedded for this example) -->
+    <script id="service-worker-js" type="text/plain">
+        const CACHE_NAME = 'emr-qr-system-v1';
+        const urlsToCache = [
+            '/',
+            '/index.html',
+            '/styles.css',
+            '/main.js',
+            '/crypto.js',
+            '/storage.js',
+            '/admin.html',
+            '/selfview.html',
+            'https://cdn.tailwindcss.com',
+            'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+            'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'
+        ];
+
+        self.addEventListener('install', event => {
+            event.waitUntil(
+                caches.open(CACHE_NAME)
+                    .then(cache => {
+                        return cache.addAll(urlsToCache);
+                    })
+            );
+        });
+
+        self.addEventListener('fetch', event => {
+            event.respondWith(
+                caches.match(event.request)
+                    .then(response => {
+                        if (response) {
+                            return response;
+                        }
+                        return fetch(event.request);
+                    })
+            );
+        });
+    </script>
+
+    <!-- Manifest (embedded for this example) -->
+    <script id="manifest-json" type="application/json">
+        {
+            "name": "EMR QR System",
+            "short_name": "EMR QR",
+            "start_url": "/index.html",
+            "display": "standalone",
+            "background_color": "#3b82f6",
+            "theme_color": "#3b82f6",
+            "description": "Emergency Medical Records via QR codes",
+            "icons": [
+                {
+                    "src": "/icons/icon-192x192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                },
+                {
+                    "src": "/icons/icon-512x512.png",
+                    "sizes": "512x512",
+                    "type": "image/png"
+                }
+            ]
+        }
+    </script>
+</body>
+</html>
+

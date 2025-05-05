@@ -1,0 +1,11 @@
+name = "medicare-ehr"
+main = "backend/index.js"
+compatibility_date = "2025-05-05"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "emr-db"
+database_id = "3da9ea6e-1b65-40b3-b77d-35d48ece36dc"
+
+[site]
+bucket = "./public"

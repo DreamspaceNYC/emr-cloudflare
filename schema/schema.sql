@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS patients;
+CREATE TABLE patients (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  age INTEGER NOT NULL,
+  diagnosis TEXT
+);
